@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id                  String       @id @default(uuid())
+  companyId           String       @unique // ID no seu sistema principal
+  companyName                String       // Nome da empresa
+  responsibleName     String       // Nome do responsável
+  email               String       @unique
+  appKey              String       @unique // Gerado automaticamente
+  privateKey          String       @unique // Gerado automaticamente
+  plan                String       @default("FREE")
+  status              Boolean      @default(true)
+  expiresAt           DateTime
+  lastAccess          DateTime?    // Opcional (?) pois começa nulo
+  firstPurchaseDate   DateTime?    // Opcional (?)
+  paymentMethod       String?      // Opcional (?)
+  asaasCustomerId     String?      @unique // Adicionado @unique
+  asaasSubscriptionId String?      @unique // Adicionado @unique
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  logs                LicenseLog[]
+
+  @@map("tenants")
+}
+
+model LicenseLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  action    String   
+  details   String?
+  createdAt DateTime @default(now())
+  
+  // Relacionamento com a tabela tenants
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("license_logs")
+}
