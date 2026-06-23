@@ -1,37 +1,57 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma'; // Importa a instância do Prisma que configuramos
+import { prisma } from '../lib/prisma';
+import { redis } from '../lib/redis';
+import { calculateNewExpiry } from '../utils/license';
+import { verifyAsaasWebhook } from '../middlewares/webhook-auth';
+import { webhookRateLimit } from '../middlewares/rate-limit';
 
 const router = Router();
 
-router.post('/asaas', async (req, res) => {
+router.post('/asaas', webhookRateLimit, verifyAsaasWebhook, async (req, res) => {
+  // Responde 200 imediatamente — Asaas não vai re-tentar
+  res.status(200).send();
+
   const event = req.body;
+  if (event.event !== 'PAYMENT_RECEIVED') return;
 
-  // Verifica se o evento é de pagamento recebido
-  if (event.event === 'PAYMENT_RECEIVED') {
-    // Calcula a nova data: 30 dias a partir de agora
-    const novaDataExpiracao = new Date();
-    novaDataExpiracao.setDate(novaDataExpiracao.getDate() + 30);
-
-    try {
-      // Atualiza o tenant encontrado pelo asaasCustomerId
-      await prisma.tenant.update({
-        where: { asaasCustomerId: event.payment.customer },
-        data: { 
-            expiresAt: novaDataExpiracao,
-            status: true // Garante que a licença esteja ativa
-        }
-      });
-      console.log(`Licença renovada para o cliente: ${event.payment.customer}`);
-    } catch (error) {
-      console.error('Erro ao atualizar licença via webhook:', error);
-      // Retorna 500 se não encontrar o cliente ou der erro no banco
-      res.status(500).send('Erro ao processar webhook');
-      return;
-    }
+  const customerId: string | undefined = event.payment?.customer;
+  if (!customerId) {
+    console.warn('[webhook] Evento sem customer ID', event);
+    return;
   }
 
-  // O Asaas espera um status 200 para confirmar que você recebeu o webhook
-  res.status(200).send();
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { asaasCustomerId: customerId } });
+    if (!tenant) {
+      console.warn(`[webhook] Tenant não encontrado para customerId: ${customerId}`);
+      return;
+    }
+
+    // Lógica correta: estende do fim do período atual, não de hoje
+    const newExpiry = calculateNewExpiry(tenant.expiresAt);
+
+    await prisma.tenant.update({
+      where: { asaasCustomerId: customerId },
+      data: {
+        expiresAt:        newExpiry,
+        status:           true,
+        firstPurchaseDate: tenant.firstPurchaseDate ?? new Date(),
+        logs: {
+          create: {
+            action:  'PAYMENT_RECEIVED',
+            details: `Asaas paymentId: ${event.payment?.id ?? 'n/a'}. Nova expiração: ${newExpiry.toISOString()}`,
+          },
+        },
+      },
+    });
+
+    // Invalida cache para a próxima validação buscar o dado atualizado
+    await redis.del(`license:${tenant.appKey}`).catch(() => {});
+
+    console.log(`[webhook] Licença renovada: ${tenant.companyName} → ${newExpiry.toISOString()}`);
+  } catch (error) {
+    console.error('[webhook] Erro ao processar pagamento:', error);
+  }
 });
 
 export default router;
