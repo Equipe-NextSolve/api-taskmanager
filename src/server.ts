@@ -5,6 +5,7 @@ import cors from 'cors';
 import webhookRoutes from './routes/webhook.routes';
 import licenseRoutes from './routes/license.routes';
 import adminRoutes from './routes/admin.routes';
+import publicRoutes  from './routes/public.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use('/webhooks',    webhookRoutes);
 app.use('/api/admin',  adminRoutes);
 app.use('/api/license', licenseRoutes);
+app.use('/api/public', publicRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
