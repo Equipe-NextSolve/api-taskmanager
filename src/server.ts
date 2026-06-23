@@ -32,8 +32,10 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Rota não encontrada.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`SaaS License API rodando na porta ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`SaaS License API rodando na porta ${PORT}`);
+  });
+}
 
 export default app;
