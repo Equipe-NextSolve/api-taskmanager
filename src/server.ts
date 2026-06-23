@@ -34,7 +34,7 @@ app.use((_req, res) => {
 
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log(`SaaS License API rodando na porta ${PORT}`);
+    console.log(`SaaS API rodando na porta ${PORT}`);
   });
 }
 
