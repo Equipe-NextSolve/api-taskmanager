@@ -13,3 +13,4 @@ console.log('====================================');
 console.log('🔑 SEU TOKEN DE ADMINISTRAÇÃO:');
 console.log(token);
 console.log('====================================');
+
