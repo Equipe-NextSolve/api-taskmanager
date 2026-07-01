@@ -9,7 +9,7 @@ const registerSchema = z.object({
     companyName: z.string().min(2).max(200),
     responsibleName: z.string().min(2).max(200),
     email: z.string().email(),
-    plan: z.enum(["FREE", "BASIC", "PRO", "ADMIN"]).default("FREE"),
+    plan: z.enum(["FREE", "BASIC", "PRO"]).default("FREE"),
 });
 
 export const publicRegister = async (
