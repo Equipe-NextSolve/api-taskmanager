@@ -41,9 +41,9 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*',
+    origin: getAllowedOrigins(),
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'asaas-access-token', 'x-registration-secret'],
 }));
 app.use(express.json({ limit: '100kb' }));
 
