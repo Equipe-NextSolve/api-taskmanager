@@ -13,6 +13,7 @@ const REQUIRED_ENV = [
     'REGISTRATION_SECRET',
     'ASAAS_API_KEY',
     'ASAAS_WEBHOOK_TOKEN',
+    'REDIS_URL',
 ] as const;
 
 for (const key of REQUIRED_ENV) {

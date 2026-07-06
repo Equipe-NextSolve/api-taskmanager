@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
-import crypto from "crypto";
+import crypto, { timingSafeEqual } from "crypto";
 import { PLANS } from "../constants/plans";
 import { z } from "zod";
 
@@ -17,7 +17,13 @@ export const publicRegister = async (
     res: Response,
 ): Promise<void> => {
     const secret = req.headers["x-registration-secret"];
-    if (!secret || secret !== process.env.REGISTRATION_SECRET) {
+    const expected = process.env.REGISTRATION_SECRET ?? "";
+    const isValid =
+        typeof secret === "string" &&
+        secret.length === expected.length &&
+        timingSafeEqual(Buffer.from(secret), Buffer.from(expected));
+
+    if (!isValid) {
         res.status(401).json({ error: "Não autorizado." });
         return;
     }
