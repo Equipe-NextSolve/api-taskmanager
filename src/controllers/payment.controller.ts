@@ -11,22 +11,28 @@ const ASAAS_BASE = process.env.ASAAS_ENV === "sandbox"
     : "https://api.asaas.com/v3";
 
 
-async function asaasRequest<T>(
-    path: string,
-    method: string,
-    body?: unknown,
-): Promise<T> {
-    const res = await fetch(`${ASAAS_BASE}${path}`, {
-        method,
-        headers: {
-            "Content-Type": "application/json",
-            access_token: process.env.ASAAS_API_KEY as string,
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-    const data = (await res.json()) as T;
-    if (!res.ok) throw new Error(JSON.stringify(data));
-    return data;
+async function asaasRequest<T>(path: string, method: string, body?: unknown): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+    try {
+        const res = await fetch(`${ASAAS_BASE}${path}`, {
+            method,
+            headers: {
+                "Content-Type": "application/json",
+                access_token: process.env.ASAAS_API_KEY as string,
+            },
+            signal: controller.signal,
+            ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+        clearTimeout(timeoutId);
+        const data = (await res.json()) as T;
+        if (!res.ok) throw new Error(JSON.stringify(data));
+        return data;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+    }
 }
 
 export const createAsaasCustomer = async (
