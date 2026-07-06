@@ -27,8 +27,8 @@ export function rateLimit(options: RateLimitOptions) {
             }
             next();
         } catch {
-            console.error('[rate-limit] Redis indisponível — retornando 503.');
-            res.status(503).json({ error: 'Serviço temporariamente indisponível.' });
+             console.error('[rate-limit] Redis indisponível — aplicando fail open.');
+            next();
         }
     };
 }
