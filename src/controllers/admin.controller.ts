@@ -251,9 +251,13 @@ export const deactivateTenant = async (
             },
         });
 
-        await notifyLicenseStatus({ companyId: tenant.companyId, status: "inactive" });
-
         await redis.del(`license:${tenant.appKey}`).catch(() => {});
+
+        const notified = await notifyLicenseStatus({ companyId: tenant.companyId, status: "inactive" });
+        await prisma.tenant.update({
+            where: { id },
+            data: { notifyPending: !notified },
+        });
         res.json({ message: "Tenant desativado." });
     } catch (error) {
         console.error("[admin] Erro ao desativar tenant:", error);

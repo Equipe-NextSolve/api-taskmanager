@@ -15,6 +15,7 @@ const REQUIRED_ENV = [
     'ASAAS_API_KEY',
     'ASAAS_WEBHOOK_TOKEN',
     'REDIS_URL',
+    'SYNC_CRON_SECRET',
 ] as const;
 
 for (const key of REQUIRED_ENV) {

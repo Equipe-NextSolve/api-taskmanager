@@ -25,6 +25,7 @@ model Tenant {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   logs                LicenseLog[]
+  notifyPending       Boolean      @default(false)
 
   @@map("tenants")
 }

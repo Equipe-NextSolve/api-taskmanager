@@ -8,10 +8,10 @@ interface LicenseStatusPayload {
     plan?: string;
 }
 
-export async function notifyLicenseStatus(payload: LicenseStatusPayload): Promise<void> {
+export async function notifyLicenseStatus(payload: LicenseStatusPayload): Promise<boolean> {
     if (!TASKMANAGER_WEBHOOK_URL || !TASKMANAGER_WEBHOOK_SECRET) {
         console.warn("[notifyLicenseStatus] Webhook não configurado, pulando notificação.");
-        return;
+        return false;
     }
 
     try {
@@ -26,8 +26,12 @@ export async function notifyLicenseStatus(payload: LicenseStatusPayload): Promis
 
         if (!res.ok) {
             console.error(`[notifyLicenseStatus] Falha ao notificar TaskManagerSolve: ${res.status}`);
+            return false;
         }
+
+        return true;
     } catch (error) {
         console.error("[notifyLicenseStatus] Erro ao notificar TaskManagerSolve:", error);
+        return false;
     }
 }

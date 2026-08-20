@@ -65,20 +65,22 @@ router.post('/asaas', webhookRateLimit, verifyAsaasWebhook, async (req, res) => 
             },
         });
 
-        await notifyLicenseStatus({
+        await redis.set(idempotencyKey, '1', 'EX', 60 * 60 * 48).catch(() => {});
+        await redis.del(`license:${tenant.appKey}`).catch(() => {});
+
+        const notified = await notifyLicenseStatus({
             companyId: tenant.companyId,
-            status: "active",
+            status: 'active',
             licenseExpiresAt: newExpiry,
             plan: tenant.plan,
         });
 
-        await redis.set(idempotencyKey, '1', 'EX', 60 * 60 * 48).catch(() => {});
-
-        // Invalida cache de licença
-        await redis.del(`license:${tenant.appKey}`).catch(() => {});
+        await prisma.tenant.update({
+            where: { asaasCustomerId: customerId },
+            data: { notifyPending: !notified },
+        });
 
         console.log(`[webhook] Licença renovada: ${tenant.companyName} → ${newExpiry.toISOString()}`);
-
     } catch (error) {
         console.error('[webhook] Erro ao processar pagamento:', error);
     }
