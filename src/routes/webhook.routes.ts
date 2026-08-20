@@ -4,6 +4,7 @@ import { redis } from '../lib/redis';
 import { calculateNewExpiry } from '../utils/license';
 import { verifyAsaasWebhook } from '../middlewares/webhook-auth';
 import { webhookRateLimit } from '../middlewares/rate-limit';
+import { notifyLicenseStatus } from '../utils/notifyLicenseStatus';
 
 const router = Router();
 
@@ -62,6 +63,13 @@ router.post('/asaas', webhookRateLimit, verifyAsaasWebhook, async (req, res) => 
                     },
                 },
             },
+        });
+
+        await notifyLicenseStatus({
+            companyId: tenant.companyId,
+            status: "active",
+            licenseExpiresAt: newExpiry,
+            plan: tenant.plan,
         });
 
         await redis.set(idempotencyKey, '1', 'EX', 60 * 60 * 48).catch(() => {});

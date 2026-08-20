@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { redis } from "../lib/redis";
 import crypto from "crypto";
 import { createTenantSchema, updateTenantSchema } from "../schemas/index";
+import { notifyLicenseStatus } from "../utils/notifyLicenseStatus";
 
 export const createTenant = async (
     req: Request,
@@ -249,6 +250,8 @@ export const deactivateTenant = async (
                 logs: { create: { action: "TENANT_DEACTIVATED" } },
             },
         });
+
+        await notifyLicenseStatus({ companyId: tenant.companyId, status: "inactive" });
 
         await redis.del(`license:${tenant.appKey}`).catch(() => {});
         res.json({ message: "Tenant desativado." });
