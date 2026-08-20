@@ -1,0 +1,15 @@
+name: Sincronizar tenants expirados
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # todo dia às 06:00 UTC (03:00 no horário de Brasília)
+  workflow_dispatch: {} # permite rodar manualmente também, pelo botão do GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar rota de sincronização
+        run: |
+          curl -sf -X POST "${{ secrets.SYNC_ENDPOINT_URL }}" \
+            -H "x-cron-secret: ${{ secrets.SYNC_CRON_SECRET }}"
