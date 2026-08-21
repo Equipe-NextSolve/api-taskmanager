@@ -97,6 +97,7 @@ export const publicRegister = async (
                 appKey,
                 privateKey,
                 plan,
+                status: plan === "FREE",
                 expiresAt,
                 logs: {
                     create: {
