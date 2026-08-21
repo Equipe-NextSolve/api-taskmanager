@@ -10,7 +10,7 @@ export const PLANS = {
   },
   BASIC: {
     name: 'BASIC',
-    price: 1.1,
+    price: 5,
     days: 30,
     maxUsers: 100,
     maxProjects: 100,
