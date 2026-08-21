@@ -7,6 +7,7 @@ import licenseRoutes from './routes/license.routes';
 import adminRoutes from './routes/admin.routes';
 import cronRoutes from './routes/cron.routes';
 import publicRoutes  from './routes/public.routes';
+import billingRoutes from './routes/billing.routes'
 
 const REQUIRED_ENV = [
     'DATABASE_URL',
@@ -46,7 +47,7 @@ app.use(helmet());
 app.use(cors({
     origin: getAllowedOrigins(),
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'asaas-access-token', 'x-registration-secret'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'asaas-access-token', 'x-registration-secret', 'x-app-key'],
 }));
 app.use(express.json({ limit: '100kb' }));
 
@@ -60,6 +61,7 @@ app.use('/api/admin',  adminRoutes);
 app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/cron', cronRoutes);
+app.use('/api/billing', billingRoutes)
 
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

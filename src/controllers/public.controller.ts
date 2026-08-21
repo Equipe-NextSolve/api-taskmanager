@@ -9,6 +9,7 @@ const registerSchema = z.object({
     companyName: z.string().min(2).max(200),
     responsibleName: z.string().min(2).max(200),
     email: z.string().email(),
+    cpfCnpj: z.string().min(1, "CPF/CNPJ é obrigatório"),
     plan: z.enum(["FREE", "BASIC", "PRO"]).default("FREE"),
 });
 
@@ -37,16 +38,41 @@ export const publicRegister = async (
         return;
     }
 
-    const { companyId, companyName, responsibleName, email, plan } =
+    const { companyId, companyName, responsibleName, email, cpfCnpj, plan } =
         result.data;
 
+    const rawCpfCnpj = cpfCnpj.replace(/\D/g, "");
+
     try {
-        const existing = await prisma.tenant.findFirst({
+        // Bloqueia e-mail ou companyId duplicado
+        const existingByEmailOrId = await prisma.tenant.findFirst({
             where: { OR: [{ email }, { companyId }] },
         });
-        if (existing) {
+        if (existingByEmailOrId) {
             res.status(409).json({ error: "Empresa já cadastrada." });
             return;
+        }
+
+        // FREE só pode ser usado uma vez por CPF/CNPJ
+        if (plan === "FREE") {
+            const usedBefore = await prisma.tenant.findUnique({ where: { cpfCnpj: rawCpfCnpj } });
+            if (usedBefore) {
+                res.status(409).json({
+                    error: "Este CPF/CNPJ já utilizou o período gratuito. Escolha um plano pago para continuar.",
+                });
+                return;
+            }
+        }
+
+        // Para planos PAGOS
+        if (plan !== "FREE") {
+            const existingByCnpj = await prisma.tenant.findUnique({ where: { cpfCnpj: rawCpfCnpj } });
+            if (existingByCnpj) {
+                res.status(409).json({
+                    error: "Este CPF/CNPJ já possui uma conta. Acesse sua conta e faça o upgrade via Configurações.",
+                });
+                return;
+            }
         }
 
         if (!PLANS) {
@@ -67,6 +93,7 @@ export const publicRegister = async (
                 companyName,
                 responsibleName,
                 email,
+                cpfCnpj: rawCpfCnpj,
                 appKey,
                 privateKey,
                 plan,

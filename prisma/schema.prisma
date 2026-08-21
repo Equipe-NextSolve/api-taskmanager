@@ -26,6 +26,7 @@ model Tenant {
   updatedAt           DateTime     @updatedAt
   logs                LicenseLog[]
   notifyPending       Boolean      @default(false)
+  cpfCnpj             String?      @unique
 
   @@map("tenants")
 }
