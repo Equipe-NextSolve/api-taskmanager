@@ -1,4 +1,5 @@
 export const GRACE_PERIOD_DAYS = 3;
+export const EXPIRING_SOON_DAYS = 3;
 
 /**
  * Calcula nova data de expiração após pagamento.
@@ -23,12 +24,20 @@ export function isWithinGracePeriod(expiresAt: Date): boolean {
   return now > expiresAt && now <= graceEnd;
 }
 
-export type LicenseStatus = 'ACTIVE' | 'GRACE_PERIOD' | 'EXPIRED' | 'INACTIVE';
+export function isExpiringSoon(expiresAt: Date): boolean {
+  const now = new Date();
+  const warningStart = new Date(expiresAt.getTime() - EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000);
+  return now >= warningStart && now <= expiresAt;
+}
+
+export type LicenseStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'EXPIRED' | 'INACTIVE';
 
 export function getLicenseStatus(tenant: { status: boolean; expiresAt: Date }): LicenseStatus {
   if (!tenant.status) return 'INACTIVE';
   const now = new Date();
-  if (tenant.expiresAt >= now) return 'ACTIVE';
+  if (tenant.expiresAt >= now) {
+    return isExpiringSoon(tenant.expiresAt) ? 'EXPIRING_SOON' : 'ACTIVE';
+  }
   if (isWithinGracePeriod(tenant.expiresAt)) return 'GRACE_PERIOD';
   return 'EXPIRED';
 }

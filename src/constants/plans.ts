@@ -1,7 +1,7 @@
 export const PLANS = {
   FREE: {
     name: 'FREE',
-    price: 0,
+    price: { MONTHLY: 0, ANNUAL: 0 },
     days: 30,
     maxUsers: 25,
     maxProjects: 5,
@@ -10,7 +10,7 @@ export const PLANS = {
   },
   BASIC: {
     name: 'BASIC',
-    price: 5,
+    price:  { MONTHLY: 5, ANNUAL: 24.9 },
     days: 30,
     maxUsers: 100,
     maxProjects: 100,
@@ -19,7 +19,7 @@ export const PLANS = {
   },
   PRO: {
     name: 'PRO',
-    price: 49.9,
+    price: {MONTHLY: 49.9, ANNUAL: 39.9 },
     days: 30,
     maxUsers: -1,
     maxProjects: -1,
@@ -28,7 +28,7 @@ export const PLANS = {
   },
   ADMIN: {
     name: 'ADMIN',
-    price: 0,
+    price: { MONTHLY: 0, ANNUAL: 0 },
     days: 36500,
     maxUsers: -1,
     maxProjects: -1,

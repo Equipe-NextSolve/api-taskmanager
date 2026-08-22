@@ -13,6 +13,7 @@ const setupCustomerSchema = z.object({
 const createSubscriptionSchema = z.object({
     plan: z.string(),
     billingType: z.enum(['PIX', 'CREDIT_CARD']),
+    billingCycle: z.enum(['MONTHLY', 'ANNUAL']).default('MONTHLY'),
     creditCard: z.object({
         holderName: z.string(),
         number: z.string(),
@@ -156,7 +157,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    const { plan, billingType, creditCard, creditCardHolderInfo } = parsed.data;
+    const { plan, billingType, billingCycle, creditCard, creditCardHolderInfo } = parsed.data;
 
     const planData = PLANS[plan as keyof typeof PLANS];
     if (!planData || plan === 'FREE' || plan === 'ADMIN') {
@@ -169,6 +170,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
+    const value = planData.price[billingCycle];
     const today = new Date().toISOString().split('T')[0];
 
     try {
@@ -176,9 +178,9 @@ export async function createSubscription(req: Request, res: Response): Promise<v
             customer: tenant.asaasCustomerId,
             billingType,
             cycle: 'MONTHLY',
-            value: planData.price,
+            value,
             nextDueDate: today,
-            description: `Plano ${plan} - TaskManager`,
+            description: `Plano ${plan} (${billingCycle === 'ANNUAL' ? 'anual' : 'mensal'}) - TaskManager`,
         };
 
         if (billingType === 'CREDIT_CARD') {
