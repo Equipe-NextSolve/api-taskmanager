@@ -1,6 +1,34 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { PLANS } from '../constants/plans';
+import { z } from 'zod';
+
+const setupCustomerSchema = z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    cpfCnpj: z.string().min(1),
+    phone: z.string().optional(),
+});
+
+const createSubscriptionSchema = z.object({
+    plan: z.string(),
+    billingType: z.enum(['PIX', 'CREDIT_CARD']),
+    creditCard: z.object({
+        holderName: z.string(),
+        number: z.string(),
+        expiryMonth: z.string(),
+        expiryYear: z.string(),
+        ccv: z.string(),
+    }).optional(),
+    creditCardHolderInfo: z.object({
+        name: z.string(),
+        email: z.string().email(),
+        cpfCnpj: z.string(),
+        postalCode: z.string(),
+        addressNumber: z.string(),
+        phone: z.string().optional(),
+    }).optional(),
+});
 
 async function asaasRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
     const baseUrl = process.env.ASAAS_ENV === 'production'
@@ -79,7 +107,13 @@ export async function setupCustomer(req: Request, res: Response): Promise<void> 
         return;
     }
 
-        const { name, email, cpfCnpj, phone } = req.body;
+    const parsed = setupCustomerSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(400).json({ error: 'Nome, e-mail e CPF/CNPJ são obrigatórios.' });
+        return;
+    }
+
+    const { name, email, cpfCnpj, phone } = parsed.data;
 
     if (!name || !email || !cpfCnpj) {
         res.status(400).json({ error: 'Nome, e-mail e CPF/CNPJ são obrigatórios.' });
@@ -116,16 +150,17 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    const { plan, billingType, creditCard, creditCardHolderInfo } = req.body;
+    const parsed = createSubscriptionSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(400).json({ error: 'Dados de assinatura inválidos.', details: parsed.error.flatten() });
+        return;
+    }
+
+    const { plan, billingType, creditCard, creditCardHolderInfo } = parsed.data;
 
     const planData = PLANS[plan as keyof typeof PLANS];
     if (!planData || plan === 'FREE' || plan === 'ADMIN') {
         res.status(400).json({ error: 'Plano inválido para assinatura.' });
-        return;
-    }
-
-    if (!['PIX', 'CREDIT_CARD'].includes(billingType)) {
-        res.status(400).json({ error: 'Método de pagamento inválido.' });
         return;
     }
 
