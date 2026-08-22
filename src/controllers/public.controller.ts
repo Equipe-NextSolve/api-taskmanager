@@ -118,3 +118,50 @@ export const publicRegister = async (
         res.status(500).json({ error: "Erro interno ao registrar." });
     }
 };
+
+export const checkCpfAvailability = async (
+    req: Request,
+    res: Response,
+): Promise<void> => {
+    const secret = req.headers["x-registration-secret"];
+    const expected = process.env.REGISTRATION_SECRET ?? "";
+    const isValid =
+        typeof secret === "string" &&
+        secret.length === expected.length &&
+        timingSafeEqual(Buffer.from(secret), Buffer.from(expected));
+
+    if (!isValid) {
+        res.status(401).json({ error: "Não autorizado." });
+        return;
+    }
+
+    const schema = z.object({
+        cpfCnpj: z.string().min(1),
+        plan: z.enum(["FREE", "BASIC", "PRO"]).default("FREE"),
+    });
+
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+        res.status(400).json({ error: "Dados inválidos." });
+        return;
+    }
+
+    const rawCpfCnpj = result.data.cpfCnpj.replace(/\D/g, "");
+
+    try {
+        const existing = await prisma.tenant.findUnique({ where: { cpfCnpj: rawCpfCnpj } });
+
+        if (existing) {
+            const message = result.data.plan === "FREE"
+                ? "Este CPF/CNPJ já utilizou o período gratuito. Escolha um plano pago para continuar."
+                : "Este CPF/CNPJ já possui uma conta. Acesse sua conta e faça o upgrade via Configurações.";
+            res.json({ available: false, message });
+            return;
+        }
+
+        res.json({ available: true });
+    } catch (error) {
+        console.error("[public] Erro ao checar CPF/CNPJ:", error);
+        res.status(500).json({ error: "Erro interno." });
+    }
+};
