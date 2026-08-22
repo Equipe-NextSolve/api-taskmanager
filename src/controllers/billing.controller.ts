@@ -79,9 +79,7 @@ export async function setupCustomer(req: Request, res: Response): Promise<void> 
         return;
     }
 
-    const { name, email, cpfCnpj, phone } = req.body as { {
-        name: string; email: string; cpfCnpj: string; phone?: string;
-    };
+        const { name, email, cpfCnpj, phone } = req.body;
 
     if (!name || !email || !cpfCnpj) {
         res.status(400).json({ error: 'Nome, e-mail e CPF/CNPJ são obrigatórios.' });
@@ -118,18 +116,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    const { plan, billingType, creditCard, creditCardHolderInfo } = req.body as {
-        plan: string;
-        billingType: 'PIX' | 'CREDIT_CARD';
-        creditCard?: {
-            holderName: string; number: string;
-            expiryMonth: string; expiryYear: string; ccv: string;
-        };
-        creditCardHolderInfo?: {
-            name: string; email: string; cpfCnpj: string;
-            postalCode: string; addressNumber: string; phone?: string;
-        };
-    };
+    const { plan, billingType, creditCard, creditCardHolderInfo } = req.body;
 
     const planData = PLANS[plan as keyof typeof PLANS];
     if (!planData || plan === 'FREE' || plan === 'ADMIN') {
