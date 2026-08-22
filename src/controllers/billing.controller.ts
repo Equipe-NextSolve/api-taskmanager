@@ -75,11 +75,11 @@ export async function setupCustomer(req: Request, res: Response): Promise<void> 
     const tenant = (req as any).tenant;
 
     if (tenant.asaasCustomerId) {
-        res.status(400).json({ error: 'Dados de pagamento já configurados.' });
+        res.json({ customerId: tenant.asaasCustomerId });
         return;
     }
 
-    const { name, email, cpfCnpj, phone } = req.body as {
+    const { name, email, cpfCnpj, phone } = req.body as { {
         name: string; email: string; cpfCnpj: string; phone?: string;
     };
 
@@ -216,5 +216,29 @@ export async function cancelSubscription(req: Request, res: Response): Promise<v
         res.json({ message: 'Assinatura cancelada com sucesso.' });
     } catch (err: any) {
         res.status(400).json({ error: err.message ?? 'Erro ao cancelar assinatura.' });
+    }
+}
+
+export async function cancelPendingAccount(req: Request, res: Response): Promise<void> {
+    const tenant = (req as any).tenant;
+
+    if (tenant.firstPurchaseDate) {
+        res.status(400).json({ error: 'Não é possível cancelar uma conta que já teve pagamento confirmado.' });
+        return;
+    }
+
+    try {
+        if (tenant.asaasSubscriptionId) {
+            await asaasRequest(`/subscriptions/${tenant.asaasSubscriptionId}`, { method: 'DELETE' }).catch(() => {});
+        }
+        if (tenant.asaasCustomerId) {
+            await asaasRequest(`/customers/${tenant.asaasCustomerId}`, { method: 'DELETE' }).catch(() => {});
+        }
+
+        await prisma.tenant.delete({ where: { id: tenant.id } });
+
+        res.json({ message: 'Cadastro cancelado com sucesso.' });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message ?? 'Erro ao cancelar cadastro.' });
     }
 }
