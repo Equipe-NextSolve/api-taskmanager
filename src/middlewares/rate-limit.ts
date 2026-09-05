@@ -37,3 +37,4 @@ export const licenseRateLimit = rateLimit({ windowSeconds: 60, max: 60, keyPrefi
 export const adminRateLimit   = rateLimit({ windowSeconds: 60, max: 30, keyPrefix: 'admin' });
 export const webhookRateLimit = rateLimit({ windowSeconds: 10, max: 50, keyPrefix: 'webhook' });
 export const cronRateLimit = rateLimit({ windowSeconds: 60, max: 5, keyPrefix: 'cron' });
+export const emailRateLimit = rateLimit({ windowSeconds: 60, max: 20, keyPrefix: 'email' });

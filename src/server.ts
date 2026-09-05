@@ -8,6 +8,7 @@ import adminRoutes from './routes/admin.routes';
 import cronRoutes from './routes/cron.routes';
 import publicRoutes  from './routes/public.routes';
 import billingRoutes from './routes/billing.routes'
+import emailRoutes from './routes/email.routes';
 
 const REQUIRED_ENV = [
     'DATABASE_URL',
@@ -17,6 +18,8 @@ const REQUIRED_ENV = [
     'ASAAS_WEBHOOK_TOKEN',
     'REDIS_URL',
     'SYNC_CRON_SECRET',
+    'INTERNAL_API_SECRET',
+    'BREVO_API_KEY',
 ] as const;
 
 for (const key of REQUIRED_ENV) {
@@ -47,7 +50,7 @@ app.use(helmet());
 app.use(cors({
     origin: getAllowedOrigins(),
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'asaas-access-token', 'x-registration-secret', 'x-app-key'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'asaas-access-token', 'x-registration-secret', 'x-app-key', 'x-internal-secret'],
 }));
 app.use(express.json({ limit: '100kb' }));
 
@@ -62,6 +65,7 @@ app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/cron', cronRoutes);
 app.use('/api/billing', billingRoutes)
+app.use('/api/internal', emailRoutes);
 
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
