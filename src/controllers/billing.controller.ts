@@ -14,6 +14,9 @@ const createSubscriptionSchema = z.object({
     plan: z.string(),
     billingType: z.enum(['PIX', 'CREDIT_CARD']),
     billingCycle: z.enum(['MONTHLY', 'ANNUAL']).default('MONTHLY'),
+    // Token preferido (vem de /billing/tokenize — PAN nunca chega aqui)
+    creditCardToken: z.string().optional(),
+    // Dados brutos ainda aceitos para compatibilidade (serão removidos futuramente)
     creditCard: z.object({
         holderName: z.string(),
         number: z.string(),
@@ -157,7 +160,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    const { plan, billingType, billingCycle, creditCard, creditCardHolderInfo } = parsed.data;
+    const { plan, billingType, billingCycle, creditCardToken, creditCard, creditCardHolderInfo } = parsed.data;
 
     const planData = PLANS[plan as keyof typeof PLANS];
     if (!planData || plan === 'FREE' || plan === 'ADMIN') {
@@ -165,8 +168,8 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    if (billingType === 'CREDIT_CARD' && (!creditCard || !creditCardHolderInfo)) {
-        res.status(400).json({ error: 'Dados do cartão são obrigatórios.' });
+    if (billingType === 'CREDIT_CARD' && !creditCardToken && (!creditCard || !creditCardHolderInfo)) {
+        res.status(400).json({ error: 'Forneça creditCardToken ou os dados completos do cartão.' });
         return;
     }
 
@@ -184,8 +187,14 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         };
 
         if (billingType === 'CREDIT_CARD') {
-            payload.creditCard = creditCard;
-            payload.creditCardHolderInfo = creditCardHolderInfo;
+            if (creditCardToken) {
+                // Caminho preferido: token — PAN nunca transitou por aqui
+                payload.creditCardToken = creditCardToken;
+            } else {
+                // Caminho legado: dados brutos
+                payload.creditCard = creditCard;
+                payload.creditCardHolderInfo = creditCardHolderInfo;
+            }
         }
 
         const subscription = await asaasRequest<{ id: string }>('/subscriptions', {
@@ -264,5 +273,63 @@ export async function cancelPendingAccount(req: Request, res: Response): Promise
         res.json({ message: 'Cadastro cancelado com sucesso.' });
     } catch (err: any) {
         res.status(500).json({ error: err.message ?? 'Erro ao cancelar cadastro.' });
+    }
+}
+const tokenizeCardSchema = z.object({
+    creditCard: z.object({
+        holderName: z.string().min(1),
+        number: z.string().min(13).max(19),
+        expiryMonth: z.string().length(2),
+        expiryYear: z.string().length(4),
+        ccv: z.string().min(3).max(4),
+    }),
+    creditCardHolderInfo: z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        cpfCnpj: z.string().min(11),
+        postalCode: z.string().min(8),
+        addressNumber: z.string().min(1),
+        phone: z.string().optional(),
+    }),
+});
+
+export async function tokenizeCard(req: Request, res: Response): Promise<void> {
+    const tenant = (req as any).tenant;
+
+    if (!tenant.asaasCustomerId) {
+        res.status(400).json({ error: 'Configure os dados de pagamento antes de tokenizar.' });
+        return;
+    }
+
+    const parsed = tokenizeCardSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(400).json({ error: 'Dados do cartão inválidos.', details: parsed.error.flatten() });
+        return;
+    }
+
+    const { creditCard, creditCardHolderInfo } = parsed.data;
+
+    try {
+        const result = await asaasRequest<{
+            creditCardToken: string;
+            creditCardBrand: string;
+            creditCardNumber: string;
+        }>('/creditCards/tokenize', {
+            method: 'POST',
+            body: JSON.stringify({
+                customer: tenant.asaasCustomerId,
+                creditCard,
+                creditCardHolderInfo,
+            }),
+        });
+
+        // Retorna APENAS o token — dados brutos do cartão ficam no ASAAS
+        res.json({
+            creditCardToken: result.creditCardToken,
+            creditCardBrand: result.creditCardBrand,
+            creditCardNumber: result.creditCardNumber, // últimos 4 dígitos (mascarado pelo ASAAS)
+        });
+    } catch (err: any) {
+        res.status(400).json({ error: err.message ?? 'Erro ao tokenizar cartão.' });
     }
 }
