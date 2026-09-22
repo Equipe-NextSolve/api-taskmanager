@@ -71,7 +71,6 @@ export const createTenant = async (
                 id: newTenant.id,
                 companyName: newTenant.companyName,
                 appKey: newTenant.appKey,
-                privateKey: newTenant.privateKey,
                 expiresAt: newTenant.expiresAt,
             },
         });

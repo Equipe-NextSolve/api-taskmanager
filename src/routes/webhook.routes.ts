@@ -43,7 +43,9 @@ router.post('/asaas', webhookRateLimit, verifyAsaasWebhook, async (req, res) => 
             return;
         }
     } catch {
-        console.warn('[webhook] Redis indisponível para idempotência, continuando...');
+        console.error('[webhook] Redis indisponível — não é possível garantir idempotência.');
+        res.status(503).json({ error: 'Serviço temporariamente indisponível.' });
+        return;
     }
 
     try {
@@ -63,7 +65,11 @@ router.post('/asaas', webhookRateLimit, verifyAsaasWebhook, async (req, res) => 
             let alreadyActivated = false;
             try {
                 alreadyActivated = !!(await redis.get(activationKey));
-            } catch { /* Redis indisponível, prossegue */ }
+            } catch {
+                console.error('[webhook] Redis indisponível para activation key — rejeitando.');
+                res.status(503).json({ error: 'Serviço temporariamente indisponível.' });
+                return;
+            }
 
             if (alreadyActivated) {
                 // PAYMENT_RECEIVED chegando depois do PAYMENT_CONFIRMED para o mesmo pagamento:

@@ -7,16 +7,26 @@ interface RateLimitOptions {
     keyPrefix: string;
 }
 
+const INCR_EXPIRE_SCRIPT = `
+local c = redis.call('INCR', KEYS[1])
+if c == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return c
+`;
+
 export function rateLimit(options: RateLimitOptions) {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
         const key = `rl:${options.keyPrefix}:${ip}`;
 
         try {
-            const count = await redis.incr(key);
-            if (count === 1) {
-                await redis.expire(key, options.windowSeconds);
-            }
+            const count = await redis.eval(
+                INCR_EXPIRE_SCRIPT,
+                1,
+                key,
+                String(options.windowSeconds)
+            ) as number;
 
             res.setHeader('X-RateLimit-Limit', options.max);
             res.setHeader('X-RateLimit-Remaining', Math.max(0, options.max - count));

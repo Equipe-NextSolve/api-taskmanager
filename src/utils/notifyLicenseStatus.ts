@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './fetchWithTimeout';
+
 const TASKMANAGER_WEBHOOK_URL = process.env.TASKMANAGER_WEBHOOK_URL as string;
 const TASKMANAGER_WEBHOOK_SECRET = process.env.TASKMANAGER_WEBHOOK_SECRET as string;
 
@@ -15,20 +17,23 @@ export async function notifyLicenseStatus(payload: LicenseStatusPayload): Promis
     }
 
     try {
-        const res = await fetch(TASKMANAGER_WEBHOOK_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-webhook-secret": TASKMANAGER_WEBHOOK_SECRET,
+        const res = await fetchWithTimeout(
+            TASKMANAGER_WEBHOOK_URL,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-webhook-secret": TASKMANAGER_WEBHOOK_SECRET,
+                },
+                body: JSON.stringify(payload),
             },
-            body: JSON.stringify(payload),
-        });
+            10_000,
+        );
 
         if (!res.ok) {
             console.error(`[notifyLicenseStatus] Falha ao notificar TaskManagerSolve: ${res.status}`);
             return false;
         }
-
         return true;
     } catch (error) {
         console.error("[notifyLicenseStatus] Erro ao notificar TaskManagerSolve:", error);
