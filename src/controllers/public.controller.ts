@@ -78,6 +78,11 @@ export const publicRegister = async (
 
     const rawCpfCnpj = cpfCnpj.replace(/\D/g, "");
 
+    if (!isValidDocument(rawCpfCnpj)) {
+        res.status(400).json({ error: "CPF/CNPJ inválido." });
+        return;
+    }
+
     try {
         // Bloqueia e-mail ou companyId duplicado
         const existingByEmailOrId = await prisma.tenant.findFirst({
