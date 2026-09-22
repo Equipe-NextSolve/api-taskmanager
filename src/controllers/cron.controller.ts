@@ -12,7 +12,6 @@ export const syncExpiredTenants = async (req: Request, res: Response): Promise<v
         let deactivated = 0;
         let cursor: string | undefined;
 
-        // 1. Percorre tenants ativos em lotes, verificando quem expirou
         while (true) {
             const batch = await prisma.tenant.findMany({
                 where: { status: true },
@@ -22,57 +21,79 @@ export const syncExpiredTenants = async (req: Request, res: Response): Promise<v
             });
 
             if (batch.length === 0) break;
+            checked += batch.length;
 
-            for (const tenant of batch) {
-                checked++;
-                if (getLicenseStatus(tenant) !== "EXPIRED") continue;
+            const expired = batch.filter(t => getLicenseStatus(t) === "EXPIRED");
 
-                await prisma.tenant.update({
-                    where: { id: tenant.id },
-                    data: {
-                        status: false,
-                        logs: { create: { action: "AUTO_DEACTIVATED_EXPIRED" } },
-                    },
+            if (expired.length > 0) {
+                // 1. Desativar em lote — uma query
+                await prisma.tenant.updateMany({
+                    where: { id: { in: expired.map(t => t.id) } },
+                    data: { status: false },
                 });
 
-                await redis.del(`license:${tenant.appKey}`).catch(() => {});
+                // 2. Invalidar cache Redis em paralelo
+                await Promise.allSettled(
+                    expired.map(t => redis.del(`license:${t.appKey}`).catch(() => {}))
+                );
 
-                const notified = await notifyLicenseStatus({ companyId: tenant.companyId, status: "inactive" });
-                await prisma.tenant.update({
-                    where: { id: tenant.id },
-                    data: { notifyPending: !notified },
-                });
+                // 3. Notificar em paralelo
+                const notifyResults = await Promise.allSettled(
+                    expired.map(t => notifyLicenseStatus({ companyId: t.companyId, status: "inactive" }))
+                );
 
-                deactivated++;
+                // 4. Marcar pendentes em lote para quem falhou
+                const failedIds = expired
+                    .filter((_, i) => {
+                        const r = notifyResults[i];
+                        return r?.status === "rejected" || (r?.status === "fulfilled" && !r.value);
+                    })
+                    .map(t => t.id);
+
+                if (failedIds.length > 0) {
+                    await prisma.tenant.updateMany({
+                        where: { id: { in: failedIds } },
+                        data: { notifyPending: true },
+                    });
+                }
+
+                deactivated += expired.length;
             }
 
             cursor = batch[batch.length - 1]?.id;
             if (batch.length < BATCH_SIZE) break;
         }
 
-        // 2. Tenta de novo qualquer tenant cuja última notificação falhou
-        // (pagamento confirmado, desativação manual ou expiração acima)
+        // Retry pendentes em paralelo
         const pending = await prisma.tenant.findMany({ where: { notifyPending: true } });
-        let retried = 0;
 
-        for (const tenant of pending) {
-            const notified = await notifyLicenseStatus({
-                companyId: tenant.companyId,
-                status: tenant.status ? "active" : "inactive",
+        const retryResults = await Promise.allSettled(
+            pending.map(t => notifyLicenseStatus({
+                companyId: t.companyId,
+                status: t.status ? "active" : "inactive",
+            }))
+        );
+
+        const retriedIds = pending
+            .filter((_, i) => {
+                const r = retryResults[i];
+                return r?.status === "fulfilled" && r.value === true;
+            })
+            .map(t => t.id);
+
+        if (retriedIds.length > 0) {
+            await prisma.tenant.updateMany({
+                where: { id: { in: retriedIds } },
+                data: { notifyPending: false },
             });
-
-            if (notified) {
-                await prisma.tenant.update({ where: { id: tenant.id }, data: { notifyPending: false } });
-                retried++;
-            }
         }
 
         res.json({
             message: "Sincronização concluída.",
             checked,
             deactivated,
-            retried,
-            stillPending: pending.length - retried,
+            retried: retriedIds.length,
+            stillPending: pending.length - retriedIds.length,
         });
     } catch (error) {
         console.error("[cron] Erro ao sincronizar tenants expirados:", error);

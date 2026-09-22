@@ -35,9 +35,12 @@ router.get('/validate/:appKey', licenseRateLimit, async (req, res) => {
     return;
   }
 
-  prisma.tenant
-    .update({ where: { appKey }, data: { lastAccess: new Date() } })
-    .catch(() => {});
+  const LAST_ACCESS_THROTTLE_MS = 5 * 60 * 1000;
+  if (!tenant.lastAccess || Date.now() - tenant.lastAccess.getTime() > LAST_ACCESS_THROTTLE_MS) {
+      prisma.tenant
+          .update({ where: { appKey }, data: { lastAccess: new Date() } })
+          .catch(() => {});
+  }
 
   const licenseStatus = getLicenseStatus(tenant);
 

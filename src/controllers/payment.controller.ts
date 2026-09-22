@@ -6,9 +6,9 @@ import {
     createSubscriptionSchema,
 } from "../schemas/index";
 
-const ASAAS_BASE = process.env.ASAAS_ENV === "sandbox"
-    ? "https://sandbox.asaas.com/api/v3"
-    : "https://api.asaas.com/v3";
+const ASAAS_BASE = process.env.ASAAS_ENV === 'production'
+    ? 'https://api.asaas.com/v3'
+    : 'https://sandbox.asaas.com/api/v3';
 
 
 async function asaasRequest<T>(path: string, method: string, body?: unknown): Promise<T> {

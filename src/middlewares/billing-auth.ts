@@ -15,7 +15,9 @@ export async function verifyAppKey(req: Request, res: Response, next: NextFuncti
             res.status(401).json({ error: 'Empresa não encontrada.' });
             return;
         }
-        (req as any).tenant = tenant;
+
+        const { privateKey: _pk, ...safeTenant } = tenant;
+        (req as any).tenant = safeTenant;
         next();
     } catch {
         res.status(500).json({ error: 'Erro interno.' });

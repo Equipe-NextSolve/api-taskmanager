@@ -1,5 +1,7 @@
+// src/routes/billing.routes.ts — completo
 import { Router } from 'express';
 import { verifyAppKey } from '../middlewares/billing-auth';
+import { billingRateLimit } from '../middlewares/rate-limit';
 import {
     getBillingStatus,
     setupCustomer,
@@ -12,6 +14,7 @@ import {
 const router = Router();
 
 router.use(verifyAppKey);
+router.use(billingRateLimit);
 
 router.get('/status', getBillingStatus);
 router.post('/customer', setupCustomer);

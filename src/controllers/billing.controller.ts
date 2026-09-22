@@ -163,7 +163,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         const payload: Record<string, unknown> = {
             customer: tenant.asaasCustomerId,
             billingType,
-            cycle: 'MONTHLY',
+            cycle: billingCycle === 'ANNUAL' ? 'YEARLY' : 'MONTHLY',
             value,
             nextDueDate: today,
             description: `Plano ${plan} (${billingCycle === 'ANNUAL' ? 'anual' : 'mensal'}) - TaskManager`,
