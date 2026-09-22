@@ -14,24 +14,7 @@ const createSubscriptionSchema = z.object({
     plan: z.string(),
     billingType: z.enum(['PIX', 'CREDIT_CARD']),
     billingCycle: z.enum(['MONTHLY', 'ANNUAL']).default('MONTHLY'),
-    // Token preferido (vem de /billing/tokenize — PAN nunca chega aqui)
     creditCardToken: z.string().optional(),
-    // Dados brutos ainda aceitos para compatibilidade (serão removidos futuramente)
-    creditCard: z.object({
-        holderName: z.string(),
-        number: z.string(),
-        expiryMonth: z.string(),
-        expiryYear: z.string(),
-        ccv: z.string(),
-    }).optional(),
-    creditCardHolderInfo: z.object({
-        name: z.string(),
-        email: z.string().email(),
-        cpfCnpj: z.string(),
-        postalCode: z.string(),
-        addressNumber: z.string(),
-        phone: z.string().optional(),
-    }).optional(),
 });
 
 async function asaasRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -160,7 +143,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    const { plan, billingType, billingCycle, creditCardToken, creditCard, creditCardHolderInfo } = parsed.data;
+    const { plan, billingType, billingCycle, creditCardToken } = parsed.data;
 
     const planData = PLANS[plan as keyof typeof PLANS];
     if (!planData || plan === 'FREE' || plan === 'ADMIN') {
@@ -168,8 +151,8 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         return;
     }
 
-    if (billingType === 'CREDIT_CARD' && !creditCardToken && (!creditCard || !creditCardHolderInfo)) {
-        res.status(400).json({ error: 'Forneça creditCardToken ou os dados completos do cartão.' });
+    if (billingType === 'CREDIT_CARD' && !creditCardToken) {
+        res.status(400).json({ error: 'Forneça o token do cartão (creditCardToken).' });
         return;
     }
 
@@ -187,14 +170,7 @@ export async function createSubscription(req: Request, res: Response): Promise<v
         };
 
         if (billingType === 'CREDIT_CARD') {
-            if (creditCardToken) {
-                // Caminho preferido: token — PAN nunca transitou por aqui
-                payload.creditCardToken = creditCardToken;
-            } else {
-                // Caminho legado: dados brutos
-                payload.creditCard = creditCard;
-                payload.creditCardHolderInfo = creditCardHolderInfo;
-            }
+            payload.creditCardToken = creditCardToken;
         }
 
         const subscription = await asaasRequest<{ id: string }>('/subscriptions', {
